@@ -1,0 +1,82 @@
+﻿version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14
+    container_name: frisbee-postgres
+    environment:
+      POSTGRES_USER: frisbee_user
+      POSTGRES_PASSWORD: frisbee_password
+      POSTGRES_DB: frisbee_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - frisbee-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frisbee_user -d frisbee_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: frisbee-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/frisbee_db
+      - SPRING_DATASOURCE_USERNAME=frisbee_user
+      - SPRING_DATASOURCE_PASSWORD=frisbee_password
+      - AI_MODEL_URL=http://ollama-api:8081/api/llm
+    ports:
+      - "8080:8080"
+    networks:
+      - frisbee-network
+
+  # Ollama LLM
+  ollama:
+    image: ollama/ollama:latest
+    container_name: frisbee-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - frisbee-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Ollama API Wrapper
+  ollama-api:
+    build:
+      context: ./ollama-api
+      dockerfile: Dockerfile
+    container_name: frisbee-ollama-api
+    depends_on:
+      - ollama
+    ports:
+      - "8081:8081"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - frisbee-network
+
+networks:
+  frisbee-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_data:

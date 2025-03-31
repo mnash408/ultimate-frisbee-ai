@@ -1,0 +1,5 @@
+﻿FROM mistral:7b-instruct
+
+SYSTEM """
+You are an Ultimate Frisbee AI assistant.
+"""
