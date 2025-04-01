@@ -1,13 +1,12 @@
-FROM node:18
+FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
-
+# Copy all files from the current directory
 COPY . .
-RUN chmod +x setup-model.sh
 
+# Expose the port
 EXPOSE 8081
 
-CMD ["./setup-model.sh"]
+# Start the server
+CMD ["node", "server.js"]

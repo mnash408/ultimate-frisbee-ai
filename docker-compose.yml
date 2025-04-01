@@ -1,5 +1,4 @@
 ﻿version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -20,13 +19,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
   # Spring Boot Backend
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: frisbee-backend
+    volumes:
+      - ./backend/target:/jar
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,7 +39,6 @@ services:
       - "8080:8080"
     networks:
       - frisbee-network
-
   # Ollama LLM
   ollama:
     image: ollama/ollama:latest
@@ -50,20 +49,15 @@ services:
       - "11434:11434"
     networks:
       - frisbee-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
+    # Removed GPU configuration
   # Ollama API Wrapper
   ollama-api:
     build:
       context: ./ollama-api
       dockerfile: Dockerfile
     container_name: frisbee-ollama-api
+    # Explicitly override entrypoint to avoid using docker-entrypoint.sh
+    entrypoint: ["node", "server.js"]
     depends_on:
       - ollama
     ports:
@@ -72,11 +66,9 @@ services:
       - OLLAMA_HOST=http://ollama:11434
     networks:
       - frisbee-network
-
 networks:
   frisbee-network:
     driver: bridge
-
 volumes:
   postgres_data:
   ollama_data:
